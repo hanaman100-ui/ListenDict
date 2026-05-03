@@ -566,7 +566,12 @@
     }
 
     function loadVoices() {
-      voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+      const all = speechSynthesis.getVoices();
+      voices = all.filter(v => /^en/i.test(v.lang));
+      // iOS/Mac은 처음 호출 시 빈 배열 반환 → 재시도
+      if (!voices.length && all.length === 0) {
+        setTimeout(loadVoices, 200);
+      }
     }
 
     speechSynthesis.onvoiceschanged = loadVoices;
@@ -611,8 +616,8 @@
 
     function speakText(text, onStart, onEnd) {
       currentVoice = questionVoice;
-      const utter = new SpeechSynthesisUtterance(', ' + text);
-      utter.rate = 0.94;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.92;
       utter.pitch = 1;
       if (currentVoice) utter.voice = currentVoice;
       utter.onstart = () => {
@@ -621,10 +626,11 @@
         if (onStart) onStart();
       };
       utter.onend = () => { isPlaying = false; if (onEnd) onEnd(); };
-      utter.onerror = () => { isPlaying = false; if (onEnd) onEnd(); };
+      utter.onerror = (e) => { isPlaying = false; if (onEnd) onEnd(); };
       currentUtterance = utter;
       speechSynthesis.cancel();
-      speechSynthesis.speak(utter);
+      // cancel() 직후 바로 speak하면 iOS에서 씹힘 → 짧은 딜레이
+      setTimeout(() => speechSynthesis.speak(utter), 50);
     }
 
     function playAudio() {
@@ -745,7 +751,13 @@
       show('quiz');
       startTimer();
 
-      setTimeout(() => playAudio(), 200);
+      // 음성 로딩 보장 후 재생 (iOS/Mac 대응)
+      const doPlay = () => {
+        if (!voices.length) loadVoices();
+        questionVoice = pickRandomVoice();
+        playAudio();
+      };
+      setTimeout(doPlay, 300);
     }
 
     function submitAnswer() {
