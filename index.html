@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#3B82F6" />
+  <title>DET Dictation</title>
+  <style>
+    :root {
+      --blue: #3B82F6;
+      --blue-d: #2563EB;
+      --orange: #F59E0B;
+      --red: #EF4444;
+      --green: #10B981;
+      --text: #111827;
+      --dim: #9CA3AF;
+      --border: #E5E7EB;
+      --panel: #F9FAFB;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .screen.hidden { display: none; }
+
+    @media (min-width: 520px) {
+      .screen {
+        max-width: 480px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+    }
+
+    #home {
+      overflow-y: auto;
+      justify-content: flex-start;
+      text-align: center;
+      padding: 36px 28px 36px;
+      gap: 12px;
+    }
+
+    h1 { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+    .sub { color: var(--dim); font-size: 14px; }
+    .divider { width: 100%; height: 1px; background: var(--border); margin: 4px 0; }
+
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #EFF6FF;
+      color: var(--blue);
+      border: 1.5px solid #BFDBFE;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 5px 14px;
+    }
+
+    .desc {
+      color: #374151;
+      font-size: 15px;
+      line-height: 1.75;
+      text-align: left;
+    }
+    .desc strong { color: var(--blue); }
+
+    .info-grid { display: flex; gap: 8px; width: 100%; }
+    .info-chip {
+      flex: 1;
+      background: var(--panel);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .ic-val { font-size: 15px; font-weight: 700; display: block; color: var(--text); }
+    .ic-label { font-size: 11px; color: var(--dim); }
+
+    .strategy-box, .mistake-box {
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.85;
+      text-align: left;
+      width: 100%;
+    }
+    .strategy-box {
+      background: #FFFBEB;
+      border: 1.5px solid #FDE68A;
+      color: #92400E;
+    }
+    .mistake-box {
+      background: #FFF7ED;
+      border: 1.5px solid #FED7AA;
+      color: #9A3412;
+    }
+    .box-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+
+    .btn-start {
+      width: 100%;
+      height: 52px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      background: var(--blue);
+      color: #fff;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-start:active { background: var(--blue-d); }
+
+    #quiz { justify-content: flex-start; }
+
+    .timer-area {
+      width: 100%;
+      padding: 20px 24px 0;
+    }
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .big-timer {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -2px;
+    }
+    .big-timer.urgent { color: var(--red); }
+
+    .q-counter { color: var(--dim); font-weight: 600; }
+
+    .prog-wrap { width: 100%; height: 5px; background: var(--border); margin-top: 12px; }
+    .prog-bar {
+      height: 100%;
+      background: var(--orange);
+      transition: width 0.9s linear;
+    }
+
+    .quiz-body {
+      flex: 1;
+      width: 100%;
+      padding: 18px 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .instruction-card {
+      background: var(--panel);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .lesson-title {
+      font-size: 13px;
+      color: #374151;
+      border: 1.5px dashed var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      line-height: 1.5;
+    }
+
+    .listen-area { display: flex; gap: 14px; align-items: flex-start; }
+
+    .speaker-btn {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: none;
+      background: var(--blue);
+      color: #fff;
+      font-size: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+      transition: transform 0.1s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .speaker-btn:active { transform: scale(0.95); }
+    .speaker-btn.playing { background: #1D4ED8; }
+    .speaker-btn.disabled { background: var(--dim); box-shadow: none; cursor: default; }
+
+    .input-area { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+    .response-input {
+      width: 100%;
+      min-height: 320px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 16px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+    }
+    .response-input:focus { border-color: var(--blue); background: #EFF6FF; }
+    .response-input::placeholder { color: var(--dim); }
+
+    .replay-info { font-size: 13px; color: var(--dim); }
+    .voice-info { font-size: 12px; color: #6B7280; }
+
+    .quiz-footer {
+      width: 100%;
+      padding: 12px 24px 28px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      height: 48px;
+      background: var(--panel);
+      border: 1.5px solid var(--border);
+      color: #374151;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #result { justify-content: flex-start; }
+
+    .result-wrap {
+      width: 100%;
+      padding: 28px 22px 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .score-box {
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      background: #F8FAFC;
+    }
+
+    .score-label { color: var(--dim); font-size: 13px; }
+    .score-value { font-size: 44px; font-weight: 800; color: var(--blue); line-height: 1.2; }
+
+    .res-card {
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      line-height: 1.7;
+      font-size: 14px;
+      word-break: break-word;
+    }
+    .res-title { font-size: 12px; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; font-weight: 700; }
+
+    .result-footer {
+      width: 100%;
+      padding: 12px 22px 28px;
+      display: flex;
+      gap: 10px;
+    }
+
+    a.link { color: var(--blue-d); text-decoration: none; font-weight: 600; }
+
+    @media (max-width: 520px) {
+      .big-timer { font-size: 36px; }
+      .timer-area { padding: 10px 16px 0; }
+      .quiz-body { padding: 14px 16px 0; }
+      .quiz-footer { padding: 8px 16px 20px; }
+      .speaker-btn { width: 60px; height: 60px; font-size: 24px; }
+    }
+
+    * { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <div id="home" class="screen">
+    <p style="font-size:1.02rem; font-weight:800; color:#16A34A; margin-bottom:4px;">오늘 한 문제가 합격에 한 걸음 더 가까워지게 해줄 거야!</p>
+    <h1>Dictation Drill</h1>
+    <p class="sub">DET Practice · One Question · Immediate Feedback</p>
+
+    <div class="divider"></div>
+
+    <span class="type-badge">🎧 유형 — Listen & Dictate</span>
+
+    <p class="desc">
+      Breaking News English 레벨 3 기반 데이터에서 랜덤으로 <strong>1문제</strong>가 출제됩니다.<br>
+      음성을 듣고 문단을 입력하면 바로 점수와 정답을 확인합니다.
+    </p>
+
+    <div class="info-grid">
+      <div class="info-chip">
+        <span class="ic-val">무제한</span>
+      </div>
+      <div class="info-chip">
+        <span class="ic-val">1문단</span>
+      </div>
+      <div class="info-chip">
+        <span class="ic-val">원문 비교</span>
+      </div>
+    </div>
+
+    <div class="strategy-box">
+      <div class="box-title">💡 핵심 전략</div>
+      <ul style="padding-left:16px;">
+        <li>처음엔 전체 문단을 듣고 대략적인 흐름 파악하기</li>
+        <li>2~3회 후에는 의미 단위로 끊어서 받아쓰기</li>
+        <li>마지막에는 원문을 보며 소리 내어 따라 읽기</li>
+      </ul>
+    </div>
+
+    <div class="mistake-box">
+      <div class="box-title">⚠️ 흔한 실수</div>
+      <ul style="padding-left:16px;">
+        <li>관사(a/the), 전치사, 짧은 기능어 누락</li>
+        <li>복수형(-s), 과거형(-ed), 진행형(-ing) 놓치기</li>
+        <li>연음 때문에 have it, made it, looked at을 잘못 듣기</li>
+        <li>틀린 문장을 소리 내어 다시 읽지 않고 넘어가기</li>
+      </ul>
+    </div>
+
+    <button class="btn-start" id="start-btn">시작</button>
+  </div>
+
+  <div id="quiz" class="screen hidden">
+    <div class="timer-area">
+      <div class="timer-row">
+        <div class="big-timer" id="q-timer">∞</div>
+        <div class="q-counter">1 / 1</div>
+      </div>
+      <div class="prog-wrap"><div class="prog-bar" id="q-bar" style="width:100%"></div></div>
+    </div>
+
+    <div class="quiz-body">
+      <div class="instruction-card">Type the statement that you hear.</div>
+      <div class="lesson-title" id="lesson-title">Loading lesson...</div>
+
+      <div class="listen-area">
+        <button class="speaker-btn" id="speaker-btn" aria-label="Play audio">🔊</button>
+        <div class="input-area">
+          <textarea class="response-input" id="response-input" placeholder="Your response"></textarea>
+          <div class="replay-info">Number of replays left: <span id="replay-count">Unlimited</span></div>
+          <div class="voice-info" id="voice-info">Voice: -</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quiz-footer">
+      <button class="btn-secondary" id="cancel-btn">취소</button>
+      <button class="btn-start" id="submit-btn" style="flex:2">결과 보기</button>
+    </div>
+  </div>
+
+  <div id="result" class="screen hidden">
+    <div class="result-wrap">
+      <div class="score-box">
+        <div class="score-label">Accuracy</div>
+        <div class="score-value" id="score-value">0%</div>
+      </div>
+
+      <div class="res-card">
+        <div class="res-title">Lesson</div>
+        <div id="res-lesson">-</div>
+      </div>
+
+      <div class="res-card">
+        <div class="res-title">Correct Sentence</div>
+        <div id="res-correct">-</div>
+      </div>
+
+      <div class="res-card">
+        <div class="res-title">Your Answer</div>
+        <div id="res-user">-</div>
+      </div>
+
+      <div class="res-card">
+        <div class="res-title">Source</div>
+        <a class="link" id="res-link" href="#" target="_blank" rel="noopener noreferrer">Open lesson</a>
+      </div>
+    </div>
+
+    <div class="result-footer">
+      <button class="btn-secondary" id="home-btn">홈으로</button>
+      <button class="btn-start" id="retry-btn">새 문제</button>
+    </div>
+  </div>
+
+  <script src="./data/level3_lessons.js"></script>
+  <script>
+    'use strict';
+
+    const TIMER_SEC = null;
+    const MAX_REPLAY = null;
+
+    let lessons = [];
+    let currentLesson = null;
+    let timerSec = TIMER_SEC;
+    let timerId = null;
+    let replayLeft = MAX_REPLAY;
+    let voices = [];
+    let currentVoice = null;
+    let questionVoice = null;
+    let currentUtterance = null;
+    let isPlaying = false;
+
+    function show(id) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function normalize(s) {
+      return String(s || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s']/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function scoreAnswer(correct, userText) {
+      const cWords = normalize(correct).split(' ').filter(Boolean);
+      const uWords = normalize(userText).split(' ').filter(Boolean);
+      if (!cWords.length) return 0;
+
+      let matched = 0;
+      const len = Math.max(cWords.length, uWords.length);
+      for (let i = 0; i < len; i++) {
+        if (cWords[i] && uWords[i] && cWords[i] === uWords[i]) matched += 1;
+      }
+      return Math.round((matched / cWords.length) * 100);
+    }
+
+    function updateTimerUI() {
+      if (TIMER_SEC === null) {
+        const timerEl = document.getElementById('q-timer');
+        timerEl.textContent = '∞';
+        timerEl.classList.remove('urgent');
+        document.getElementById('q-bar').style.width = '100%';
+        return;
+      }
+
+      const m = Math.floor(timerSec / 60);
+      const s = String(timerSec % 60).padStart(2, '0');
+      const timerEl = document.getElementById('q-timer');
+      timerEl.textContent = `${m}:${s}`;
+      timerEl.classList.toggle('urgent', timerSec <= 15);
+
+      const pct = Math.max(0, (timerSec / TIMER_SEC) * 100);
+      document.getElementById('q-bar').style.width = `${pct}%`;
+    }
+
+    function clearTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function startTimer() {
+      clearTimer();
+
+      if (TIMER_SEC === null) {
+        updateTimerUI();
+        return;
+      }
+
+      timerSec = TIMER_SEC;
+      updateTimerUI();
+      timerId = setInterval(() => {
+        timerSec -= 1;
+        updateTimerUI();
+        if (timerSec <= 0) {
+          clearTimer();
+          submitAnswer();
+        }
+      }, 1000);
+    }
+
+    function stopSpeech() {
+      if (currentUtterance) {
+        speechSynthesis.cancel();
+        currentUtterance = null;
+      }
+      isPlaying = false;
+      document.getElementById('speaker-btn').classList.remove('playing');
+    }
+
+    function loadVoices() {
+      voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    }
+
+    speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
+
+    function pickRandomVoice() {
+      if (!voices.length) return null;
+
+      // 1순위: Microsoft en-US (Edge Natural 포함)
+      const msUS = voices.filter(v => /microsoft/i.test(v.name) && /en[-_]US/i.test(v.lang));
+      if (msUS.length) return msUS[Math.floor(Math.random() * msUS.length)];
+
+      // 2순위: en-US 전체
+      const anyUS = voices.filter(v => /en[-_]US/i.test(v.lang));
+      if (anyUS.length) return anyUS[Math.floor(Math.random() * anyUS.length)];
+
+      // 3순위: Microsoft 영어 (미국 외)
+      const msEN = voices.filter(v => /microsoft/i.test(v.name) && /^en/i.test(v.lang));
+      if (msEN.length) return msEN[Math.floor(Math.random() * msEN.length)];
+
+      // 마지막: 영어 아무거나
+      return voices[Math.floor(Math.random() * voices.length)];
+    }
+
+    function playAudio(isReplay = false) {
+      if (!currentLesson || isPlaying) return;
+
+      const text = currentLesson.dictation_text;
+      if (!text) return;
+
+      currentVoice = questionVoice;
+      // 앞에 짧은 pause를 붙여 TTS 오디오 컨텍스트 워밍업 (첫 단어 잘림 방지)
+      const utter = new SpeechSynthesisUtterance(', ' + text);
+      utter.rate = 0.94;
+      utter.pitch = 1;
+      if (currentVoice) utter.voice = currentVoice;
+
+      utter.onstart = () => {
+        isPlaying = true;
+        document.getElementById('speaker-btn').classList.add('playing');
+        const voiceName = currentVoice ? `${currentVoice.name} (${currentVoice.lang})` : 'Default';
+        document.getElementById('voice-info').textContent = `Voice: ${voiceName}`;
+      };
+
+      utter.onend = () => {
+        isPlaying = false;
+        document.getElementById('speaker-btn').classList.remove('playing');
+      };
+
+      utter.onerror = () => {
+        isPlaying = false;
+        document.getElementById('speaker-btn').classList.remove('playing');
+      };
+
+      currentUtterance = utter;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utter);
+
+      if (isReplay && MAX_REPLAY !== null) {
+        replayLeft -= 1;
+        document.getElementById('replay-count').textContent = replayLeft;
+        if (replayLeft <= 0) {
+          document.getElementById('speaker-btn').classList.add('disabled');
+        }
+      }
+    }
+
+    function pickLesson() {
+      const idx = Math.floor(Math.random() * lessons.length);
+      return lessons[idx];
+    }
+
+    async function loadDB() {
+      try {
+        const res = await fetch('./data/level3_lessons.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Fetch failed');
+        const db = await res.json();
+        lessons = Array.isArray(db.lessons) ? db.lessons : [];
+      } catch (err) {
+        const fallback = typeof window.LEVEL3_DB === 'object' && window.LEVEL3_DB
+          ? window.LEVEL3_DB
+          : null;
+        lessons = fallback && Array.isArray(fallback.lessons) ? fallback.lessons : [];
+      }
+
+      if (!lessons.length) {
+        throw new Error('No lessons in DB');
+      }
+    }
+
+    async function startQuiz() {
+      try {
+        if (!lessons.length) {
+          await loadDB();
+        }
+      } catch (err) {
+        alert('데이터 로딩에 실패했습니다. data/level3_lessons.json 또는 data/level3_lessons.js 파일을 확인하세요.');
+        return;
+      }
+
+      currentLesson = pickLesson();
+      questionVoice = pickRandomVoice();
+      replayLeft = MAX_REPLAY === null ? Infinity : MAX_REPLAY;
+      document.getElementById('replay-count').textContent = MAX_REPLAY === null ? 'Unlimited' : String(replayLeft);
+      document.getElementById('speaker-btn').classList.remove('disabled');
+      document.getElementById('response-input').value = '';
+      document.getElementById('lesson-title').textContent = currentLesson.title;
+      document.getElementById('voice-info').textContent = questionVoice
+        ? `Voice: ${questionVoice.name} (${questionVoice.lang})`
+        : 'Voice: Default';
+
+      show('quiz');
+      startTimer();
+
+      setTimeout(() => playAudio(false), 200);
+    }
+
+    function submitAnswer() {
+      if (!currentLesson) return;
+
+      stopSpeech();
+      clearTimer();
+
+      const userText = document.getElementById('response-input').value.trim();
+      const score = scoreAnswer(currentLesson.dictation_text, userText);
+
+      document.getElementById('score-value').textContent = `${score}%`;
+      document.getElementById('res-lesson').textContent = `${currentLesson.title} (Level ${currentLesson.level})`;
+      document.getElementById('res-correct').textContent = currentLesson.dictation_text;
+      document.getElementById('res-user').textContent = userText || '(No answer)';
+
+      const linkEl = document.getElementById('res-link');
+      linkEl.href = currentLesson.url;
+      linkEl.textContent = currentLesson.url;
+
+      show('result');
+    }
+
+    function backHome() {
+      stopSpeech();
+      clearTimer();
+      show('home');
+    }
+
+    document.getElementById('start-btn').addEventListener('click', startQuiz);
+
+    document.getElementById('speaker-btn').addEventListener('click', () => {
+      playAudio(true);
+    });
+
+    document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+    document.getElementById('cancel-btn').addEventListener('click', backHome);
+    document.getElementById('home-btn').addEventListener('click', backHome);
+    document.getElementById('retry-btn').addEventListener('click', startQuiz);
+  </script>
+</body>
+</html>
