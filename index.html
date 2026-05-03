@@ -580,19 +580,22 @@
     function pickRandomVoice() {
       if (!voices.length) return null;
 
-      // 1순위: Microsoft en-US (Edge Natural 포함)
+      // 1순위: Microsoft en-US (Windows Edge)
       const msUS = voices.filter(v => /microsoft/i.test(v.name) && /en[-_]US/i.test(v.lang));
       if (msUS.length) return msUS[Math.floor(Math.random() * msUS.length)];
 
-      // 2순위: en-US 전체
+      // 2순위: en-US Enhanced/Premium (Mac Samantha Enhanced 등)
+      const enhancedUS = voices.filter(v => /en[-_]US/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
+      if (enhancedUS.length) return enhancedUS[Math.floor(Math.random() * enhancedUS.length)];
+
+      // 3순위: en-US 전체
       const anyUS = voices.filter(v => /en[-_]US/i.test(v.lang));
       if (anyUS.length) return anyUS[Math.floor(Math.random() * anyUS.length)];
 
-      // 3순위: Microsoft 영어 (미국 외)
-      const msEN = voices.filter(v => /microsoft/i.test(v.name) && /^en/i.test(v.lang));
-      if (msEN.length) return msEN[Math.floor(Math.random() * msEN.length)];
+      // 4순위: Enhanced/Premium 영어 전체
+      const enhancedEN = voices.filter(v => /^en/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
+      if (enhancedEN.length) return enhancedEN[Math.floor(Math.random() * enhancedEN.length)];
 
-      // 마지막: 영어 아무거나
       return voices[Math.floor(Math.random() * voices.length)];
     }
 
@@ -617,7 +620,7 @@
     function speakText(text, onStart, onEnd) {
       currentVoice = questionVoice;
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.92;
+      utter.rate = 1.0;
       utter.pitch = 1;
       if (currentVoice) utter.voice = currentVoice;
       utter.onstart = () => {
