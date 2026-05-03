@@ -205,6 +205,7 @@
     }
     .speaker-btn:active { transform: scale(0.95); }
     .speaker-btn.playing { background: #1D4ED8; }
+    .speaker-btn.paused { background: #6B7280; }
     .speaker-btn.disabled { background: var(--dim); box-shadow: none; cursor: default; }
 
     .input-area { flex: 1; display: flex; flex-direction: column; gap: 8px; }
@@ -226,6 +227,60 @@
 
     .replay-info { font-size: 13px; color: var(--dim); }
     .voice-info { font-size: 12px; color: #6B7280; }
+
+    .sentence-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .sentence-row {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .sentence-row.playing { border-color: var(--blue); background: #EFF6FF; }
+    .chip-controls {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .chip-play-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--blue);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chip-play-btn:active { opacity: 0.7; }
+    .chip-divider { width: 1px; height: 20px; background: var(--border); }
+    .chip-show-btn {
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      color: var(--dim);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chip-show-btn:active { opacity: 0.7; }
+    .chip-text {
+      display: none;
+      padding: 0 14px 10px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .chip-text.visible { display: block; }
 
     .quiz-footer {
       width: 100%;
@@ -369,6 +424,7 @@
           <div class="voice-info" id="voice-info">Voice: -</div>
         </div>
       </div>
+      <div class="sentence-list" id="sentence-list"></div>
     </div>
 
     <div class="quiz-footer">
@@ -502,12 +558,11 @@
     }
 
     function stopSpeech() {
-      if (currentUtterance) {
-        speechSynthesis.cancel();
-        currentUtterance = null;
-      }
+      speechSynthesis.cancel();
+      currentUtterance = null;
       isPlaying = false;
-      document.getElementById('speaker-btn').classList.remove('playing');
+      clearSentenceHighlight();
+      setMainBtnState('idle');
     }
 
     function loadVoices() {
@@ -536,47 +591,110 @@
       return voices[Math.floor(Math.random() * voices.length)];
     }
 
-    function playAudio(isReplay = false) {
-      if (!currentLesson || isPlaying) return;
+    // audioState: 'idle' | 'playing' | 'paused'
+    let audioState = 'idle';
+    let activeSentenceRow = null;
 
-      const text = currentLesson.dictation_text;
-      if (!text) return;
+    function setMainBtnState(state) {
+      audioState = state;
+      const btn = document.getElementById('speaker-btn');
+      btn.classList.remove('playing', 'paused');
+      if (state === 'playing') { btn.textContent = '⏸'; btn.classList.add('playing'); }
+      else if (state === 'paused') { btn.textContent = '▶'; btn.classList.add('paused'); }
+      else { btn.textContent = '🔊'; }
+    }
 
+    function clearSentenceHighlight() {
+      document.querySelectorAll('.sentence-row').forEach(r => r.classList.remove('playing'));
+      activeSentenceRow = null;
+    }
+
+    function speakText(text, onStart, onEnd) {
       currentVoice = questionVoice;
-      // 앞에 짧은 pause를 붙여 TTS 오디오 컨텍스트 워밍업 (첫 단어 잘림 방지)
       const utter = new SpeechSynthesisUtterance(', ' + text);
       utter.rate = 0.94;
       utter.pitch = 1;
       if (currentVoice) utter.voice = currentVoice;
-
       utter.onstart = () => {
-        isPlaying = true;
-        document.getElementById('speaker-btn').classList.add('playing');
         const voiceName = currentVoice ? `${currentVoice.name} (${currentVoice.lang})` : 'Default';
         document.getElementById('voice-info').textContent = `Voice: ${voiceName}`;
+        if (onStart) onStart();
       };
-
-      utter.onend = () => {
-        isPlaying = false;
-        document.getElementById('speaker-btn').classList.remove('playing');
-      };
-
-      utter.onerror = () => {
-        isPlaying = false;
-        document.getElementById('speaker-btn').classList.remove('playing');
-      };
-
+      utter.onend = () => { isPlaying = false; if (onEnd) onEnd(); };
+      utter.onerror = () => { isPlaying = false; if (onEnd) onEnd(); };
       currentUtterance = utter;
       speechSynthesis.cancel();
       speechSynthesis.speak(utter);
+    }
 
-      if (isReplay && MAX_REPLAY !== null) {
-        replayLeft -= 1;
-        document.getElementById('replay-count').textContent = replayLeft;
-        if (replayLeft <= 0) {
-          document.getElementById('speaker-btn').classList.add('disabled');
-        }
-      }
+    function playAudio() {
+      if (!currentLesson) return;
+      const text = currentLesson.dictation_text;
+      if (!text) return;
+
+      isPlaying = true;
+      clearSentenceHighlight();
+      setMainBtnState('playing');
+
+      speakText(
+        text,
+        null,
+        () => { clearSentenceHighlight(); setMainBtnState('idle'); }
+      );
+    }
+
+    function playSentence(sentence, rowEl) {
+      speechSynthesis.cancel();
+      isPlaying = true;
+      clearSentenceHighlight();
+      setMainBtnState('idle');
+      rowEl.classList.add('playing');
+      activeSentenceRow = rowEl;
+      speakText(sentence, null, () => {
+        rowEl.classList.remove('playing');
+        activeSentenceRow = null;
+      });
+    }
+
+    function buildSentenceList(text) {
+      const container = document.getElementById('sentence-list');
+      container.innerHTML = '';
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      sentences.forEach((s, i) => {
+        const row = document.createElement('div');
+        row.className = 'sentence-row';
+
+        const controls = document.createElement('div');
+        controls.className = 'chip-controls';
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'chip-play-btn';
+        playBtn.innerHTML = `🔊 <span>${i + 1}</span>`;
+        playBtn.addEventListener('click', () => playSentence(s.trim(), row));
+
+        const divider = document.createElement('div');
+        divider.className = 'chip-divider';
+
+        const showBtn = document.createElement('button');
+        showBtn.className = 'chip-show-btn';
+        showBtn.textContent = '보기';
+
+        const textEl = document.createElement('div');
+        textEl.className = 'chip-text';
+        textEl.textContent = s.trim();
+
+        showBtn.addEventListener('click', () => {
+          const visible = textEl.classList.toggle('visible');
+          showBtn.textContent = visible ? '숨기기' : '보기';
+        });
+
+        controls.appendChild(playBtn);
+        controls.appendChild(divider);
+        controls.appendChild(showBtn);
+        row.appendChild(controls);
+        row.appendChild(textEl);
+        container.appendChild(row);
+      });
     }
 
     function pickLesson() {
@@ -619,6 +737,7 @@
       document.getElementById('speaker-btn').classList.remove('disabled');
       document.getElementById('response-input').value = '';
       document.getElementById('lesson-title').textContent = currentLesson.title;
+      buildSentenceList(currentLesson.dictation_text);
       document.getElementById('voice-info').textContent = questionVoice
         ? `Voice: ${questionVoice.name} (${questionVoice.lang})`
         : 'Voice: Default';
@@ -626,7 +745,7 @@
       show('quiz');
       startTimer();
 
-      setTimeout(() => playAudio(false), 200);
+      setTimeout(() => playAudio(), 200);
     }
 
     function submitAnswer() {
@@ -659,7 +778,18 @@
     document.getElementById('start-btn').addEventListener('click', startQuiz);
 
     document.getElementById('speaker-btn').addEventListener('click', () => {
-      playAudio(true);
+      if (audioState === 'playing') {
+        speechSynthesis.pause();
+        isPlaying = false;
+        setMainBtnState('paused');
+      } else if (audioState === 'paused') {
+        speechSynthesis.resume();
+        isPlaying = true;
+        setMainBtnState('playing');
+      } else {
+        // idle: 처음 재생 또는 재시작
+        playAudio();
+      }
     });
 
     document.getElementById('submit-btn').addEventListener('click', submitAnswer);
