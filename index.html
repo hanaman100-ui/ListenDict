@@ -580,23 +580,36 @@
     function pickRandomVoice() {
       if (!voices.length) return null;
 
+      // 기계음으로 알려진 보이스 제외
+      const BAD_VOICES = /^(fred|trinoids|zarvox|whisper|cellos|bells|boing|bubbles|bad news|deranged|good news|hysterical|organ|pipe organ|princess|bahh|albert|junior|kathy|ralph)/i;
+      const pool = voices.filter(v => !BAD_VOICES.test(v.name));
+      const src = pool.length ? pool : voices;
+
+      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+
       // 1순위: Microsoft en-US (Windows Edge)
-      const msUS = voices.filter(v => /microsoft/i.test(v.name) && /en[-_]US/i.test(v.lang));
+      const msUS = src.filter(v => /microsoft/i.test(v.name) && /en[-_]US/i.test(v.lang));
       if (msUS.length) return msUS[Math.floor(Math.random() * msUS.length)];
 
       // 2순위: en-US Enhanced/Premium (Mac Samantha Enhanced 등)
-      const enhancedUS = voices.filter(v => /en[-_]US/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
+      const enhancedUS = src.filter(v => /en[-_]US/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
       if (enhancedUS.length) return enhancedUS[Math.floor(Math.random() * enhancedUS.length)];
 
-      // 3순위: en-US 전체
-      const anyUS = voices.filter(v => /en[-_]US/i.test(v.lang));
+      // 3순위: iOS면 Samantha 우선 (랜덤 기계음 방지)
+      if (isIOS) {
+        const samantha = src.find(v => /samantha/i.test(v.name) && /en[-_]US/i.test(v.lang));
+        if (samantha) return samantha;
+      }
+
+      // 4순위: en-US 전체 (기계음 제외)
+      const anyUS = src.filter(v => /en[-_]US/i.test(v.lang));
       if (anyUS.length) return anyUS[Math.floor(Math.random() * anyUS.length)];
 
-      // 4순위: Enhanced/Premium 영어 전체
-      const enhancedEN = voices.filter(v => /^en/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
+      // 5순위: Enhanced/Premium 영어 전체
+      const enhancedEN = src.filter(v => /^en/i.test(v.lang) && /(enhanced|premium)/i.test(v.name));
       if (enhancedEN.length) return enhancedEN[Math.floor(Math.random() * enhancedEN.length)];
 
-      return voices[Math.floor(Math.random() * voices.length)];
+      return src[Math.floor(Math.random() * src.length)];
     }
 
     // audioState: 'idle' | 'playing' | 'paused'
@@ -753,14 +766,6 @@
 
       show('quiz');
       startTimer();
-
-      // 음성 로딩 보장 후 재생 (iOS/Mac 대응)
-      const doPlay = () => {
-        if (!voices.length) loadVoices();
-        questionVoice = pickRandomVoice();
-        playAudio();
-      };
-      setTimeout(doPlay, 300);
     }
 
     function submitAnswer() {
